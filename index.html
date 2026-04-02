@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Decision Scale</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1 class="app-title">Decision Scale</h1>
+      <input type="text" id="search-input" class="search-input" placeholder="Search decisions…" />
+    </div>
+    <ul class="decision-list" id="decision-list"></ul>
+    <button class="btn-new" id="btn-new">+ New Decision</button>
+  </aside>
+
+  <!-- MAIN PANEL -->
+  <main class="main-panel" id="main-panel">
+
+    <!-- Empty state -->
+    <div class="empty-state" id="empty-state">
+      <div class="empty-icon">⚖️</div>
+      <p>No decision selected.</p>
+      <p>Create a new decision or select one from the sidebar.</p>
+    </div>
+
+    <!-- Editor (hidden until a decision is selected) -->
+    <div class="editor" id="editor" hidden>
+
+      <div class="editor-header">
+        <input type="text" id="title-input" class="title-input" placeholder="Decision title…" />
+        <div class="header-actions">
+          <input type="text" id="tag-input" class="tag-input" placeholder="Tag (e.g. career)" />
+          <button class="btn-resolve" id="btn-resolve">Mark Resolved</button>
+        </div>
+      </div>
+
+      <!-- SCALE -->
+      <section class="scale-section">
+        <div class="scale-wrapper">
+          <div class="scale-pivot"></div>
+          <div class="scale-beam" id="scale-beam">
+            <div class="scale-pan pan-pro">
+              <span class="pan-label">PRO</span>
+              <span class="pan-score" id="pro-score">0</span>
+            </div>
+            <div class="scale-pan pan-con">
+              <span class="pan-label">CON</span>
+              <span class="pan-score" id="con-score">0</span>
+            </div>
+          </div>
+        </div>
+        <div class="scale-verdict">
+          <span class="verdict-text" id="verdict-text"></span>
+          <span class="balance-text">Balance: <strong id="balance-score">0</strong></span>
+        </div>
+      </section>
+
+      <!-- PRO / CON COLUMNS -->
+      <div class="items-grid">
+
+        <div class="items-column column-pro">
+          <h2 class="column-title pro-title">Pros</h2>
+          <div class="add-item-row">
+            <input type="text" id="pro-input" class="item-input" placeholder="Add a pro…" />
+            <button class="btn-add btn-add-pro" id="btn-add-pro">Add</button>
+          </div>
+          <div class="item-list" id="pro-list"></div>
+        </div>
+
+        <div class="items-column column-con">
+          <h2 class="column-title con-title">Cons</h2>
+          <div class="add-item-row">
+            <input type="text" id="con-input" class="item-input" placeholder="Add a con…" />
+            <button class="btn-add btn-add-con" id="btn-add-con">Add</button>
+          </div>
+          <div class="item-list" id="con-list"></div>
+        </div>
+
+      </div>
+
+      <!-- REFLECTIONS -->
+      <div class="reflections-section">
+        <label class="reflections-label" for="notes-input">Reflections</label>
+        <textarea id="notes-input" class="reflections-textarea" placeholder="Write your thoughts here…" rows="4"></textarea>
+      </div>
+
+    </div>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
