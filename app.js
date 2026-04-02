@@ -86,6 +86,8 @@ function selectDecision(id) {
   const d = getActive();
   if (!d) return;
 
+  window.__activeDecision = d; // exposed for goose.js
+
   emptyState.hidden = true;
   editor.hidden = false;
 

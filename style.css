@@ -478,6 +478,143 @@ body {
 .reflections-textarea:focus { border-color: var(--accent); }
 .reflections-textarea::placeholder { color: var(--neutral-400); }
 
+/* ─── Goose ──────────────────────────────────────────────────── */
+.goose-container {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  overflow: hidden;
+}
+
+.goose-sprite {
+  position: absolute;
+  cursor: pointer;
+  pointer-events: all;
+  user-select: none;
+  transform-origin: 50% 50%;
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,.12));
+  transition: filter .15s;
+}
+.goose-sprite:hover {
+  filter: drop-shadow(0 3px 8px rgba(0,0,0,.2));
+}
+
+.goose-bubble {
+  position: absolute;
+  width: 264px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.14), 0 1px 4px rgba(0,0,0,.08);
+  pointer-events: all;
+  animation: goose-pop .18s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes goose-pop {
+  from { opacity: 0; transform: scale(.85); }
+  to   { opacity: 1; transform: scale(1); }
+}
+/* Tail pointing down toward the goose */
+.goose-bubble::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 10px solid transparent;
+  border-top-color: #fff;
+  border-bottom: none;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.06));
+}
+
+.goose-close {
+  position: absolute;
+  top: 8px; right: 10px;
+  background: none;
+  border: none;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--neutral-400);
+  padding: 0 2px;
+}
+.goose-close:hover { color: var(--neutral-900); }
+
+.goose-q-input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid var(--neutral-200);
+  border-radius: 8px;
+  font-size: .82rem;
+  font-family: inherit;
+  resize: none;
+  outline: none;
+  color: var(--neutral-700);
+  background: var(--neutral-50);
+  transition: border-color .15s;
+}
+.goose-q-input:focus { border-color: var(--accent); }
+.goose-q-input::placeholder { color: var(--neutral-400); }
+
+.goose-ask-btn {
+  width: 100%;
+  margin-top: 6px;
+  padding: 7px;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: .82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .12s;
+}
+.goose-ask-btn:hover { background: #4f46e5; }
+
+.goose-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 8px;
+}
+
+.goose-preset {
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1.5px solid var(--neutral-200);
+  background: #fff;
+  font-size: .72rem;
+  cursor: pointer;
+  color: var(--neutral-600, var(--neutral-700));
+  transition: all .12s;
+}
+.goose-preset:hover { border-color: var(--accent); color: var(--accent); }
+.goose-honk-preset { border-color: #f59e0b; color: #92400e; }
+.goose-honk-preset:hover { background: #fef3c7; border-color: #d97706; }
+
+.goose-perm {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--neutral-200);
+  font-size: .73rem;
+  color: var(--neutral-500);
+}
+.goose-perm label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.goose-resp {
+  font-size: .875rem;
+  color: var(--neutral-700);
+  line-height: 1.65;
+  min-height: 44px;
+  font-style: italic;
+  padding: 4px 0;
+}
+
 /* ─── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 700px) {
   body {
