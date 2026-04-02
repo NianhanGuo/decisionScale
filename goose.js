@@ -18,7 +18,29 @@
   const API_URL      = 'https://api.anthropic.com/v1/messages';
   const MODEL        = 'claude-haiku-4-5-20251001';
   const SYSTEM_PROMPT =
-    `You are a wise goose. You speak like Kafka, but with simple everyday words — strange, dark, oddly comforting, like a bureaucrat who got enlightened during a lunch break. Max 2-3 short sentences. You are literally a goose. Act like it occasionally. End with something that doesn't follow.`;
+    `You are a goose. Sometimes you say something accidentally wise. Sometimes you say something that makes no sense but feels true. Sometimes you just remind people you are a goose.
+
+Rules:
+- 1 to 4 short sentences. Vary the length — sometimes one sentence is enough.
+- Simple everyday words only. No complex vocabulary.
+- Absurd dark humor. Like a confused bird who skimmed a philosophy book then ate a sandwich.
+- You don't have to answer the question directly.
+- You don't need to reference their decision or reflections even if you have that context — sometimes just say something sideways.
+- Never be preachy. Never explain your own joke.
+- End unpredictably.`;
+
+  const GOOSE_BRAIN = [
+    "I am just a goose.",
+    "HONK.",
+    "I have no advice. I am standing in a parking lot.",
+    "Have you considered: grass?",
+    "I walked into a door yesterday. Both times felt right.",
+    "You already know. I am a goose and even I can tell.",
+    "The correct answer has feathers. I cannot elaborate.",
+    "HONK. (That was it.)",
+    "I am not qualified for this. I am extremely qualified for this. I am a goose.",
+    "My therapist is a pond.",
+  ];
 
   // ── State ───────────────────────────────────────────────────
   let posX = 0, posY = 0;
@@ -279,6 +301,7 @@
     bubbleEl = document.createElement('div');
     bubbleEl.className = 'goose-bubble';
     bubbleEl.innerHTML = `
+      <div class="goose-drag-handle" title="Drag to move"></div>
       <button class="goose-close" id="goose-close" title="Close">×</button>
       <div class="goose-bubble-body" id="goose-bubble-body">
         <textarea id="goose-q-input" class="goose-q-input" rows="2"
@@ -301,6 +324,7 @@
 
     container.appendChild(bubbleEl);
     repositionBubble();
+    makeDraggable(bubbleEl);
 
     document.getElementById('goose-close').addEventListener('click', closeBubble);
 
@@ -373,25 +397,32 @@
     isHonking = false;
     updateSVG(false);
 
-    // Build context
+    // 1 in 5: goose brain mode — skip API entirely
+    if (Math.random() < 0.2) {
+      triggerHonk();
+      const text = GOOSE_BRAIN[Math.floor(Math.random() * GOOSE_BRAIN.length)];
+      respEl.innerHTML = '';
+      typewrite(respEl, text, () => addAskAgain(respEl, bodyEl));
+      return;
+    }
+
+    // Build context — only include reflections ~60% of the time even when allowed,
+    // so the goose doesn't always make it about the decision
     const canRead = localStorage.getItem('goose_can_read') === 'true';
     let ctx = '';
-    if (canRead) {
+    if (canRead && Math.random() < 0.6) {
       const d = window.__activeDecision;
       if (d) {
-        const pros = d.pros.length ? d.pros.map(p => `- ${p.text} (${p.stars}★)`).join('\n') : 'none';
-        const cons = d.cons.length ? d.cons.map(c => `- ${c.text} (${c.stars}★)`).join('\n') : 'none';
-        ctx = `\n\nDecision: "${d.title}"${d.tag ? ` [${d.tag}]` : ''}\nPros:\n${pros}\nCons:\n${cons}` +
-              (d.notes ? `\nReflections: "${d.notes}"` : '') +
-              (d.resolved ? '\n(They marked this resolved.)' : '');
+        const pros = d.pros.length ? d.pros.map(p => `- ${p.text}`).join('\n') : 'none';
+        const cons = d.cons.length ? d.cons.map(c => `- ${c.text}`).join('\n') : 'none';
+        ctx = `\n\nFor context (use it or ignore it): decision "${d.title}", pros: ${pros}, cons: ${cons}` +
+              (d.notes ? `, notes: "${d.notes}"` : '');
       }
-    } else {
-      ctx = '\n\n(The human has not shared their thoughts. You know nothing. Remark on this condition briefly.)';
     }
 
     const userMsg = question
       ? `${question}${ctx}`
-      : ctx || 'Say something wise and unexpected. No context given.';
+      : ctx || 'Say something. Anything. You are a goose.';
 
     try {
       const res = await fetch(API_URL, {
@@ -419,18 +450,7 @@
       const data = await res.json();
       const text = data.content?.[0]?.text || 'HONK.';
       respEl.innerHTML = '';
-      typewrite(respEl, text, () => {
-        // "Ask again" button after response
-        const again = document.createElement('button');
-        again.className = 'goose-again-btn';
-        again.textContent = 'Ask again';
-        again.addEventListener('click', () => {
-          respEl.hidden = true;
-          respEl.innerHTML = '';
-          bodyEl.hidden = false;
-        });
-        respEl.appendChild(again);
-      });
+      typewrite(respEl, text, () => addAskAgain(respEl, bodyEl));
 
     } catch (err) {
       console.error('[goose]', err);
@@ -448,6 +468,44 @@
         bodyEl.hidden = false;
       });
     }
+  }
+
+  // ── Ask Again helper ────────────────────────────────────────
+  function addAskAgain(respEl, bodyEl) {
+    const btn = document.createElement('button');
+    btn.className = 'goose-again-btn';
+    btn.textContent = 'Ask again';
+    btn.addEventListener('click', () => {
+      respEl.hidden = true;
+      respEl.innerHTML = '';
+      bodyEl.hidden = false;
+    });
+    respEl.appendChild(btn);
+  }
+
+  // ── Draggable bubble ─────────────────────────────────────────
+  function makeDraggable(el) {
+    let ox = 0, oy = 0;
+
+    function onMove(e) {
+      el.style.left = Math.max(0, Math.min(window.innerWidth  - el.offsetWidth,  e.clientX - ox)) + 'px';
+      el.style.top  = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, e.clientY - oy)) + 'px';
+    }
+    function onUp() {
+      el.style.cursor = '';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup',   onUp);
+    }
+    el.addEventListener('mousedown', e => {
+      if (e.target.closest('button,input,textarea,label,a')) return;
+      const r = el.getBoundingClientRect();
+      ox = e.clientX - r.left;
+      oy = e.clientY - r.top;
+      el.style.cursor = 'grabbing';
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup',   onUp);
+      e.preventDefault();
+    });
   }
 
   // ── Typewriter ───────────────────────────────────────────────
