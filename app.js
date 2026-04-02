@@ -90,6 +90,7 @@ function selectDecision(id) {
 
   emptyState.hidden = true;
   editor.hidden = false;
+  document.getElementById('main-panel').scrollTo({ top: 0, behavior: 'smooth' });
 
   titleInput.value = d.title;
   tagInput.value   = d.tag;
