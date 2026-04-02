@@ -138,7 +138,7 @@ Rules:
 
     gooseEl = document.createElement('div');
     gooseEl.className = 'goose-sprite';
-    gooseEl.addEventListener('click', onGooseClick);
+    initGooseDrag(); // handles both tap-to-click and drag-to-reposition
 
     container.appendChild(gooseEl);
     document.body.appendChild(container);
@@ -285,7 +285,7 @@ Rules:
     }, delay);
   }
 
-  // ── Click ────────────────────────────────────────────────────
+  // ── Click / Drag ─────────────────────────────────────────────
   function onGooseClick() {
     triggerHonk();
     if (bubbleOpen) return;
@@ -293,6 +293,55 @@ Rules:
     clearTimeout(pauseTimer);
     prevTime = null;
     openBubble();
+  }
+
+  function initGooseDrag() {
+    const THRESHOLD = 6; // px before a press becomes a drag
+    let startX = 0, startY = 0, offX = 0, offY = 0, isDragging = false;
+
+    gooseEl.addEventListener('pointerdown', e => {
+      startX = e.clientX;
+      startY = e.clientY;
+      const r = gooseEl.getBoundingClientRect();
+      offX = e.clientX - r.left;
+      offY = e.clientY - r.top;
+      isDragging = false;
+      gooseEl.setPointerCapture(e.pointerId);
+      e.preventDefault();
+    });
+
+    gooseEl.addEventListener('pointermove', e => {
+      if (!gooseEl.hasPointerCapture(e.pointerId)) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (!isDragging && Math.sqrt(dx * dx + dy * dy) > THRESHOLD) {
+        isDragging = true;
+        walking = false;
+        clearTimeout(pauseTimer);
+        prevTime = null;
+        gooseEl.style.cursor = 'grabbing';
+      }
+      if (isDragging) {
+        posX = Math.max(0, Math.min(window.innerWidth  - GOOSE_W, e.clientX - offX));
+        posY = Math.max(0, Math.min(window.innerHeight - GOOSE_H, e.clientY - offY));
+        setPos();
+      }
+    });
+
+    gooseEl.addEventListener('pointerup', e => {
+      if (!gooseEl.hasPointerCapture(e.pointerId)) return;
+      gooseEl.releasePointerCapture(e.pointerId);
+      gooseEl.style.cursor = 'pointer';
+      if (isDragging) {
+        isDragging = false;
+        if (!bubbleOpen) {
+          // Short pause then resume wandering from new position
+          pauseTimer = setTimeout(pickTarget, 600 + Math.random() * 800);
+        }
+      } else {
+        onGooseClick();
+      }
+    });
   }
 
   // ── Bubble ───────────────────────────────────────────────────
