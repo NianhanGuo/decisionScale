@@ -615,6 +615,27 @@ body {
   padding: 4px 0;
 }
 
+.goose-thinking {
+  color: var(--neutral-400);
+  font-style: normal;
+  letter-spacing: .15em;
+}
+
+.goose-again-btn {
+  display: block;
+  margin-top: 10px;
+  padding: 5px 14px;
+  border-radius: 99px;
+  border: 1.5px solid var(--neutral-200);
+  background: #fff;
+  font-size: .75rem;
+  font-style: normal;
+  cursor: pointer;
+  color: var(--neutral-500);
+  transition: all .12s;
+}
+.goose-again-btn:hover { border-color: var(--accent); color: var(--accent); }
+
 /* ─── Responsive ─────────────────────────────────────────────── */
 @media (max-width: 700px) {
   body {

@@ -3,65 +3,62 @@
   'use strict';
 
   // ── Config ──────────────────────────────────────────────────
-  const SPEED          = 60;     // px/sec
-  const LEG_SWAP_SEC   = 0.28;   // seconds per leg position
-  const PAUSE_MIN      = 2000;   // ms pause at target
-  const PAUSE_MAX      = 5000;
-  const HONK_MIN       = 15000;  // ms random honk interval
-  const HONK_MAX       = 45000;
-  const HONK_DUR       = 600;    // ms honk animation
-  const BOB_INTERVAL   = 3500;   // ms idle bob
-  const GOOSE_W        = 105;
-  const API_URL        = 'https://api.anthropic.com/v1/messages';
-  const MODEL          = 'claude-haiku-4-5-20251001';
+  const SPEED        = 58;     // px/sec (diagonal constant speed)
+  const LEG_SWAP_SEC = 0.27;
+  const PAUSE_MIN    = 2200;
+  const PAUSE_MAX    = 5500;
+  const HONK_MIN     = 18000;
+  const HONK_MAX     = 44000;
+  const HONK_DUR     = 620;
+  const BOB_INTERVAL = 3800;
+  const GOOSE_W      = 105;
+  const GOOSE_H      = 78;
+  const Y_MIN_FRAC   = 0.58;   // goose stays in bottom ~40% of viewport
+  const Y_MAX_FRAC   = 0.88;
+  const API_URL      = 'https://api.anthropic.com/v1/messages';
+  const MODEL        = 'claude-haiku-4-5-20251001';
+  const SYSTEM_PROMPT =
+    `You are a wise goose. You speak like Kafka, but with simple everyday words — strange, dark, oddly comforting, like a bureaucrat who got enlightened during a lunch break. Max 2-3 short sentences. You are literally a goose. Act like it occasionally. End with something that doesn't follow.`;
 
   // ── State ───────────────────────────────────────────────────
-  let posX = 0, posY = 0, targetX = 0;
-  let facingRight = true;
-  let walking     = false;
-  let bubbleOpen  = false;
-  let legPhase    = 0;
-  let legAccum    = 0;
-  let isHonking   = false;
-  let prevTime    = null;
-  let pauseTimer  = null;
-  let honkTimer   = null;
-  let honkAnim    = null;
-  let bobTimer    = null;
-  let apiKey      = localStorage.getItem('goose_api_key') || '';
+  let posX = 0, posY = 0;
+  let targetX = 0, targetY = 0;
+  let facingRight  = true;
+  let walking      = false;
+  let bubbleOpen   = false;
+  let legPhase     = 0;
+  let legAccum     = 0;
+  let isHonking    = false;
+  let scrollTilt   = 0;
+  let prevTime     = null;
+  let pauseTimer   = null;
+  // honkTimer intentionally not stored — self-rescheduling, never cancelled
+  let honkAnim     = null;
+  let scrollReset  = null;
+  let apiKey       = localStorage.getItem('goose_api_key') || '';
 
   // ── DOM ─────────────────────────────────────────────────────
   let container, gooseEl, bubbleEl;
 
   // ── SVG ─────────────────────────────────────────────────────
   function gooseSVG(phase, honking) {
-    const no = honking ? -7 : 0; // neck lifts when honking
+    const no = honking ? -8 : 0;
     return `<svg viewBox="0 0 105 78" width="105" height="78" xmlns="http://www.w3.org/2000/svg">
-      <!-- Tail -->
       <path d="M 26 42 Q 10 33 14 22 Q 22 33 28 40 Z" fill="white" stroke="#d1d5db" stroke-width="1"/>
-      <!-- Body -->
       <ellipse cx="47" cy="44" rx="24" ry="15" fill="white" stroke="#d1d5db" stroke-width="1.5"/>
-      <!-- Wing detail -->
       <path d="M 30 40 Q 47 33 67 40" stroke="#e2e8f0" stroke-width="2.5" fill="none" stroke-linecap="round"/>
-      <!-- Neck shadow -->
-      <path d="M 65 32 Q 77 ${20 + no} 84 ${12 + no}" stroke="#d1d5db" stroke-width="12" fill="none" stroke-linecap="round" opacity="0.3"/>
-      <!-- Neck -->
-      <path d="M 65 32 Q 77 ${20 + no} 84 ${12 + no}" stroke="white" stroke-width="10" fill="none" stroke-linecap="round"/>
-      <!-- Head -->
-      <circle cx="84" cy="${11 + no}" r="10" fill="white" stroke="#d1d5db" stroke-width="1.5"/>
-      <!-- Beak -->
-      <path d="M 91 ${9 + no} L 104 ${11 + no} L 91 ${14 + no} Z" fill="#f59e0b" stroke="#d97706" stroke-width="0.5"/>
-      <!-- Eye -->
-      <circle cx="81" cy="${7 + no}" r="3" fill="#1e293b"/>
-      <circle cx="82.2" cy="${5.8 + no}" r="1" fill="white"/>
+      <path d="M 65 32 Q 77 ${20+no} 84 ${12+no}" stroke="#d1d5db" stroke-width="12" fill="none" stroke-linecap="round" opacity="0.3"/>
+      <path d="M 65 32 Q 77 ${20+no} 84 ${12+no}" stroke="white" stroke-width="10" fill="none" stroke-linecap="round"/>
+      <circle cx="84" cy="${11+no}" r="10" fill="white" stroke="#d1d5db" stroke-width="1.5"/>
+      <path d="M 91 ${9+no} L 104 ${11+no} L 91 ${14+no} Z" fill="#f59e0b" stroke="#d97706" stroke-width="0.5"/>
+      <circle cx="81" cy="${7+no}" r="3" fill="#1e293b"/>
+      <circle cx="82.2" cy="${5.8+no}" r="1" fill="white"/>
       ${phase === 0 ? `
-      <!-- Walk A: left fwd, right back -->
       <line x1="41" y1="57" x2="36" y2="70" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
       <line x1="36" y1="70" x2="29" y2="70" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
       <line x1="53" y1="57" x2="58" y2="70" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
       <line x1="58" y1="70" x2="65" y2="70" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
       ` : `
-      <!-- Walk B: left back, right fwd -->
       <line x1="41" y1="57" x2="46" y2="70" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
       <line x1="46" y1="70" x2="53" y2="70" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
       <line x1="53" y1="57" x2="48" y2="70" stroke="#f59e0b" stroke-width="3" stroke-linecap="round"/>
@@ -75,24 +72,36 @@
     gooseEl.innerHTML = gooseSVG(legPhase, isHonking);
   }
 
+  // ── Transform (flip + tilt combined) ────────────────────────
+  // rotate() before scaleX() so tilt is always in screen-space
+  // regardless of facing direction
+  function applyTransform(transition) {
+    if (transition) {
+      gooseEl.style.transition = `transform ${transition}`;
+    }
+    const sx = facingRight ? 1 : -1;
+    gooseEl.style.transform = `rotate(${scrollTilt}deg) scaleX(${sx})`;
+  }
+
   // ── Audio ────────────────────────────────────────────────────
   let audioCtx = null;
   function playHonk() {
     try {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const ctx  = audioCtx;
-      const osc  = ctx.createOscillator();
+      const AC = window.AudioContext || window['webkitAudioContext'];
+      if (!audioCtx) audioCtx = new AC();
+      const ctx = audioCtx;
+      const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.type = 'sawtooth';
       osc.frequency.setValueAtTime(310, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(170, ctx.currentTime + 0.18);
-      osc.frequency.exponentialRampToValueAtTime(250, ctx.currentTime + 0.34);
+      osc.frequency.exponentialRampToValueAtTime(165, ctx.currentTime + 0.18);
+      osc.frequency.exponentialRampToValueAtTime(248, ctx.currentTime + 0.34);
       gain.gain.setValueAtTime(0.22, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.38);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.4);
       osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.4);
+      osc.stop(ctx.currentTime + 0.42);
     } catch (_) {}
   }
 
@@ -108,30 +117,41 @@
     container.appendChild(gooseEl);
     document.body.appendChild(container);
 
-    posX = Math.random() * (window.innerWidth - GOOSE_W);
-    posY = window.innerHeight * (0.7 + Math.random() * 0.1);
+    posX = 80 + Math.random() * (window.innerWidth - GOOSE_W - 160);
+    posY = window.innerHeight * (Y_MIN_FRAC + Math.random() * (Y_MAX_FRAC - Y_MIN_FRAC));
     updateSVG(false);
     setPos();
     pickTarget();
     scheduleHonk();
     startBob();
+    initScrollReaction();
   }
 
-  // ── Movement ─────────────────────────────────────────────────
+  // ── Position ─────────────────────────────────────────────────
   function setPos() {
-    gooseEl.style.left      = posX + 'px';
-    gooseEl.style.top       = posY + 'px';
-    gooseEl.style.transform = facingRight ? 'scaleX(1)' : 'scaleX(-1)';
+    gooseEl.style.left = posX + 'px';
+    gooseEl.style.top  = posY + 'px';
+    applyTransform();
+  }
+
+  // ── 2D Movement ──────────────────────────────────────────────
+  function yBounds() {
+    return {
+      min: window.innerHeight * Y_MIN_FRAC,
+      max: window.innerHeight * Y_MAX_FRAC - GOOSE_H
+    };
   }
 
   function pickTarget() {
     if (bubbleOpen) return;
-    const margin = GOOSE_W + 10;
-    targetX      = margin + Math.random() * (window.innerWidth - margin * 2);
-    facingRight  = targetX > posX;
-    walking      = true;
-    prevTime     = null;
-    setPos();
+    const xMargin = GOOSE_W + 10;
+    const yb = yBounds();
+    targetX     = xMargin + Math.random() * (window.innerWidth - xMargin * 2);
+    targetY     = yb.min + Math.random() * (yb.max - yb.min);
+    facingRight = targetX > posX;
+    walking     = true;
+    prevTime    = null;
+    applyTransform();
     requestAnimationFrame(walkFrame);
   }
 
@@ -141,19 +161,13 @@
     const dt = Math.min((ts - prevTime) / 1000, 0.05);
     prevTime = ts;
 
-    // Move toward target
-    const dir = targetX > posX ? 1 : -1;
-    posX += dir * SPEED * dt;
+    const dx   = targetX - posX;
+    const dy   = targetY - posY;
+    const dist = Math.sqrt(dx * dx + dy * dy);
 
-    // Leg swap
-    legAccum += dt;
-    if (legAccum >= LEG_SWAP_SEC) {
-      legAccum = 0;
-      legPhase = legPhase === 0 ? 1 : 0;
-    }
-
-    if (Math.abs(posX - targetX) < 3) {
-      posX     = targetX;
+    if (dist < 3) {
+      posX = targetX;
+      posY = targetY;
       walking  = false;
       legPhase = 0;
       legAccum = 0;
@@ -164,18 +178,63 @@
       return;
     }
 
-    posX = Math.max(0, Math.min(window.innerWidth - GOOSE_W, posX));
+    // Move at constant speed along direction vector
+    const step = SPEED * dt;
+    posX += (dx / dist) * step;
+    posY += (dy / dist) * step;
+
+    // Leg swap
+    legAccum += dt;
+    if (legAccum >= LEG_SWAP_SEC) {
+      legAccum = 0;
+      legPhase = legPhase === 0 ? 1 : 0;
+    }
+
+    // Clamp to screen
+    posX = Math.max(0, Math.min(window.innerWidth  - GOOSE_W, posX));
+    posY = Math.max(0, Math.min(window.innerHeight - GOOSE_H, posY));
+
     updateSVG();
     setPos();
     requestAnimationFrame(walkFrame);
   }
 
-  // ── Idle bob ─────────────────────────────────────────────────
+  // ── Scroll Reaction ──────────────────────────────────────────
+  function initScrollReaction() {
+    window.addEventListener('wheel', e => {
+      const sign = Math.sign(e.deltaY);
+
+      // Tilt goose body in scroll direction
+      scrollTilt = sign * 12;
+      gooseEl.style.transition = 'transform 0.1s ease';
+      applyTransform();
+
+      // Nudge vertical position slightly opposite scroll
+      if (!bubbleOpen) {
+        const yb = yBounds();
+        posY = Math.max(yb.min, Math.min(yb.max, posY + sign * 5));
+        gooseEl.style.top = posY + 'px';
+        // Reposition open bubble too
+        if (bubbleEl) repositionBubble();
+      }
+
+      // Return to upright after scroll stops
+      clearTimeout(scrollReset);
+      scrollReset = setTimeout(() => {
+        scrollTilt = 0;
+        gooseEl.style.transition = 'transform 0.3s cubic-bezier(.34,1.56,.64,1)';
+        applyTransform();
+        setTimeout(() => { gooseEl.style.transition = ''; }, 320);
+      }, 160);
+    }, { passive: true });
+  }
+
+  // ── Idle Bob ─────────────────────────────────────────────────
   function startBob() {
-    bobTimer = setInterval(() => {
-      if (!walking && !bubbleOpen) {
+    setInterval(() => {
+      if (!walking && !bubbleOpen && scrollTilt === 0) {
         gooseEl.style.transition = 'top 0.18s ease';
-        gooseEl.style.top        = (posY - 5) + 'px';
+        gooseEl.style.top = (posY - 5) + 'px';
         setTimeout(() => {
           gooseEl.style.top = posY + 'px';
           setTimeout(() => { gooseEl.style.transition = ''; }, 200);
@@ -204,7 +263,6 @@
   function onGooseClick() {
     triggerHonk();
     if (bubbleOpen) return;
-    // Stop walking
     walking = false;
     clearTimeout(pauseTimer);
     prevTime = null;
@@ -224,12 +282,12 @@
       <button class="goose-close" id="goose-close" title="Close">×</button>
       <div class="goose-bubble-body" id="goose-bubble-body">
         <textarea id="goose-q-input" class="goose-q-input" rows="2"
-          placeholder="Ask the goose something… (optional)"></textarea>
-        <button class="goose-ask-btn" id="goose-ask-btn">Ask</button>
+          placeholder="Ask the goose… (or just pick below)"></textarea>
+        <button class="goose-ask-btn" id="goose-ask-btn">Ask <small style="opacity:.6">(Ctrl+Enter)</small></button>
         <div class="goose-presets">
           <button class="goose-preset" data-q="What should I do?">What should I do?</button>
-          <button class="goose-preset" data-q="Am I overthinking?">Am I overthinking?</button>
-          <button class="goose-preset" data-q="Give me a sign">Give me a sign</button>
+          <button class="goose-preset" data-q="Am I overthinking this?">Am I overthinking?</button>
+          <button class="goose-preset" data-q="Give me a sign.">Give me a sign</button>
           <button class="goose-preset goose-honk-preset" data-q="__honk__">Just honk at me</button>
         </div>
         <div class="goose-perm">
@@ -241,16 +299,9 @@
       </div>
       <div class="goose-resp" id="goose-resp" hidden></div>`;
 
-    // Position: above goose, clamped to viewport
-    const bw    = 264;
-    const bLeft = Math.max(8, Math.min(window.innerWidth - bw - 8, posX - bw / 2 + GOOSE_W / 2));
-    const bTop  = Math.max(8, posY - 235);
-    bubbleEl.style.left = bLeft + 'px';
-    bubbleEl.style.top  = bTop  + 'px';
-
     container.appendChild(bubbleEl);
+    repositionBubble();
 
-    // Events
     document.getElementById('goose-close').addEventListener('click', closeBubble);
 
     document.getElementById('goose-can-read').addEventListener('change', e => {
@@ -265,20 +316,26 @@
     document.getElementById('goose-q-input').addEventListener('keydown', e => {
       if (e.key === 'Enter' && e.ctrlKey) {
         e.preventDefault();
-        const q = e.target.value.trim();
-        askGoose(q || null);
+        askGoose(e.target.value.trim() || null);
       }
     });
 
     bubbleEl.querySelectorAll('.goose-preset').forEach(btn => {
       btn.addEventListener('click', () => {
-        const q = btn.dataset.q;
-        askGoose(q === '__honk__' ? null : q);
+        askGoose(btn.dataset.q === '__honk__' ? null : btn.dataset.q);
       });
     });
 
-    // Click outside to close
     setTimeout(() => document.addEventListener('click', outsideClick), 60);
+  }
+
+  function repositionBubble() {
+    if (!bubbleEl) return;
+    const bw   = 264;
+    const bLeft = Math.max(8, Math.min(window.innerWidth - bw - 8, posX - bw / 2 + GOOSE_W / 2));
+    const bTop  = Math.max(8, posY - 240);
+    bubbleEl.style.left = bLeft + 'px';
+    bubbleEl.style.top  = bTop  + 'px';
   }
 
   function closeBubble() {
@@ -298,11 +355,11 @@
 
   // ── API ──────────────────────────────────────────────────────
   async function askGoose(question) {
+    // Prompt for key if missing
     if (!apiKey) {
-      apiKey = prompt('Enter your Anthropic API key to awaken the goose:');
+      apiKey = (prompt('Enter your Anthropic API key to awaken the goose:') || '').trim();
       if (!apiKey) return;
-      localStorage.setItem('goose_api_key', apiKey.trim());
-      apiKey = apiKey.trim();
+      localStorage.setItem('goose_api_key', apiKey);
     }
 
     const bodyEl = document.getElementById('goose-bubble-body');
@@ -311,37 +368,30 @@
 
     bodyEl.hidden = true;
     respEl.hidden = false;
-    respEl.textContent = '...';
+    respEl.innerHTML = '<span class="goose-thinking">. . .</span>';
 
-    // Thoughtful pause: stop honking, just stand still
     isHonking = false;
     updateSVG(false);
 
+    // Build context
     const canRead = localStorage.getItem('goose_can_read') === 'true';
     let ctx = '';
-
     if (canRead) {
       const d = window.__activeDecision;
       if (d) {
-        const prosStr = d.pros.length
-          ? d.pros.map(p => `  - ${p.text} (${p.stars} stars)`).join('\n')
-          : '  none';
-        const consStr = d.cons.length
-          ? d.cons.map(c => `  - ${c.text} (${c.stars} stars)`).join('\n')
-          : '  none';
-        ctx = `\n\nThe human is weighing a decision: "${d.title}"` +
-          (d.tag ? ` (tagged: ${d.tag})` : '') +
-          `.\nPros:\n${prosStr}\nCons:\n${consStr}` +
-          (d.notes ? `\nTheir reflections: "${d.notes}"` : '') +
-          (d.resolved ? '\nThey have already resolved this.' : '');
+        const pros = d.pros.length ? d.pros.map(p => `- ${p.text} (${p.stars}★)`).join('\n') : 'none';
+        const cons = d.cons.length ? d.cons.map(c => `- ${c.text} (${c.stars}★)`).join('\n') : 'none';
+        ctx = `\n\nDecision: "${d.title}"${d.tag ? ` [${d.tag}]` : ''}\nPros:\n${pros}\nCons:\n${cons}` +
+              (d.notes ? `\nReflections: "${d.notes}"` : '') +
+              (d.resolved ? '\n(They marked this resolved.)' : '');
       }
     } else {
-      ctx = "\n\nThe human has chosen not to share their thoughts with you. Acknowledge the bureaucratic impasse of knowing nothing.";
+      ctx = '\n\n(The human has not shared their thoughts. You know nothing. Remark on this condition briefly.)';
     }
 
     const userMsg = question
       ? `${question}${ctx}`
-      : ctx || 'Drop an unsolicited piece of wisdom.';
+      : ctx || 'Say something wise and unexpected. No context given.';
 
     try {
       const res = await fetch(API_URL, {
@@ -354,30 +404,63 @@
         },
         body: JSON.stringify({
           model: MODEL,
-          max_tokens: 200,
-          system: `You are a wise goose. You speak in short, absurd, Kafka-esque observations — existential but not pretentious, dark but oddly comforting, like a bureaucrat who became enlightened. Max 3 sentences. Never explain yourself. Occasionally reference being a goose. End with something unexpected.`,
+          max_tokens: 180,
+          system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: userMsg }]
         })
       });
 
-      if (!res.ok) throw new Error(`${res.status}`);
+      if (!res.ok) {
+        let msg = `API error ${res.status}`;
+        try { const e = await res.json(); msg = e.error?.message || msg; } catch (_) {}
+        throw new Error(msg);
+      }
+
       const data = await res.json();
       const text = data.content?.[0]?.text || 'HONK.';
-      typewrite(respEl, text);
+      respEl.innerHTML = '';
+      typewrite(respEl, text, () => {
+        // "Ask again" button after response
+        const again = document.createElement('button');
+        again.className = 'goose-again-btn';
+        again.textContent = 'Ask again';
+        again.addEventListener('click', () => {
+          respEl.hidden = true;
+          respEl.innerHTML = '';
+          bodyEl.hidden = false;
+        });
+        respEl.appendChild(again);
+      });
+
     } catch (err) {
+      console.error('[goose]', err);
       triggerHonk();
-      respEl.textContent = 'HONK.';
+      const isKeyError = /401|invalid.*key|auth/i.test(err.message);
+      respEl.innerHTML = `<span style="color:#ef4444;font-style:normal;font-size:.8rem">${
+        isKeyError ? 'Invalid API key.' : err.message
+      }</span>
+      <button class="goose-again-btn" id="goose-reset-key">Reset API key</button>`;
+      document.getElementById('goose-reset-key')?.addEventListener('click', () => {
+        localStorage.removeItem('goose_api_key');
+        apiKey = '';
+        respEl.hidden = true;
+        respEl.innerHTML = '';
+        bodyEl.hidden = false;
+      });
     }
   }
 
   // ── Typewriter ───────────────────────────────────────────────
-  function typewrite(el, text) {
+  function typewrite(el, text, onDone) {
     el.textContent = '';
     let i = 0;
     const iv = setInterval(() => {
       el.textContent += text[i++];
-      if (i >= text.length) clearInterval(iv);
-    }, 20);
+      if (i >= text.length) {
+        clearInterval(iv);
+        if (onDone) onDone();
+      }
+    }, 18);
   }
 
   // ── Boot ─────────────────────────────────────────────────────
