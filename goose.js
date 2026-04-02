@@ -57,7 +57,11 @@ Rules:
   // honkTimer intentionally not stored — self-rescheduling, never cancelled
   let honkAnim     = null;
   let scrollReset  = null;
-  let apiKey       = localStorage.getItem('goose_api_key') || '';
+  // config.js (gitignored) wins; localStorage is the fallback for when
+  // the file isn't present (e.g. GitHub Pages with no local config)
+  let apiKey = (window.GOOSE_CONFIG?.apiKey || '').replace('sk-ant-YOUR-KEY-HERE', '')
+            || localStorage.getItem('goose_api_key')
+            || '';
 
   // ── DOM ─────────────────────────────────────────────────────
   let container, gooseEl, bubbleEl;
