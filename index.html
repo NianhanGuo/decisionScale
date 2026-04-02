@@ -18,18 +18,25 @@
     <button class="btn-new" id="btn-new">+ New Decision</button>
   </aside>
 
-  <!-- MAIN PANEL -->
+  <!-- MAIN PANEL — two pages stacked, only one visible at a time -->
   <main class="main-panel" id="main-panel">
 
-    <!-- Empty state -->
-    <div class="empty-state" id="empty-state">
-      <div class="empty-icon">⚖️</div>
-      <p>No decision selected.</p>
-      <p>Create a new decision or select one from the sidebar.</p>
+    <!-- PAGE 1: Welcome (shown when nothing is selected) -->
+    <div class="page page-active" id="empty-state">
+      <div class="welcome-body">
+        <div class="welcome-icon">⚖️</div>
+        <h2 class="welcome-title">What are you weighing?</h2>
+        <p class="welcome-sub">
+          Add your pros and cons, rate each one, and let the scale
+          show you where you actually stand.
+        </p>
+        <button class="btn-new-welcome" id="btn-new-welcome">+ New Decision</button>
+        <div id="welcome-recent"></div>
+      </div>
     </div>
 
-    <!-- Editor (hidden until a decision is selected) -->
-    <div class="editor" id="editor" hidden>
+    <!-- PAGE 2: Decision editor -->
+    <div class="page" id="editor">
 
       <div class="editor-header">
         <input type="text" id="title-input" class="title-input" placeholder="Decision title…" />
@@ -89,7 +96,8 @@
         <textarea id="notes-input" class="reflections-textarea" placeholder="Write your thoughts here…" rows="4"></textarea>
       </div>
 
-    </div>
+    </div><!-- /editor -->
+
   </main>
 
   <script src="app.js"></script>

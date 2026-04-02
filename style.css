@@ -148,27 +148,140 @@ body {
 
 /* ─── Main Panel ─────────────────────────────────────────────── */
 .main-panel {
-  padding: 32px 40px;
-  overflow-y: auto;
+  position: relative;  /* stacking context for absolute pages */
+  overflow: hidden;
 }
 
-/* Empty state */
-.empty-state {
+/* ─── Page system ────────────────────────────────────────────── */
+.page {
+  position: absolute;
+  inset: 0;
+  overflow-y: auto;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+.page.page-active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
+/* ─── Welcome page ───────────────────────────────────────────── */
+#empty-state {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 32px;
+}
+
+.welcome-body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 100%;
-  min-height: 60vh;
-  gap: 10px;
-  color: var(--neutral-400);
   text-align: center;
+  gap: 14px;
+  max-width: 420px;
+  width: 100%;
 }
-.empty-icon { font-size: 3.5rem; }
-.empty-state p { font-size: .95rem; }
 
-/* ─── Editor ─────────────────────────────────────────────────── */
-.editor { display: flex; flex-direction: column; gap: 28px; }
+.welcome-icon { font-size: 3.2rem; line-height: 1; }
+
+.welcome-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--neutral-900);
+  letter-spacing: -.02em;
+}
+
+.welcome-sub {
+  font-size: .925rem;
+  color: var(--neutral-500);
+  line-height: 1.6;
+  max-width: 340px;
+}
+
+.btn-new-welcome {
+  margin-top: 6px;
+  padding: 11px 28px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  font-size: .95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+}
+.btn-new-welcome:hover  { background: #4f46e5; }
+.btn-new-welcome:active { transform: scale(.97); }
+
+/* Recent decisions on welcome page */
+#welcome-recent {
+  width: 100%;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.welcome-recent-label {
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--neutral-400);
+  margin-bottom: 4px;
+}
+
+.welcome-card {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 10px;
+  border: 1.5px solid var(--neutral-200);
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: border-color .12s, box-shadow .12s;
+}
+.welcome-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 2px 10px rgba(99,102,241,.1);
+}
+
+.welcome-card-title {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--neutral-800, var(--neutral-900));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.welcome-card-meta {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.welcome-card-score {
+  font-size: .72rem;
+  color: var(--neutral-400);
+  margin-left: auto;
+}
+
+/* ─── Editor page ────────────────────────────────────────────── */
+#editor {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+  padding: 32px 40px;
+}
 
 .editor-header {
   display: flex;

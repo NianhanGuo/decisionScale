@@ -26,6 +26,43 @@ function getActive() {
   return decisions.find(d => d.id === activeId) || null;
 }
 
+// ─── Page switching ───────────────────────────────────────────
+function showEditor() {
+  emptyState.classList.remove('page-active');
+  editor.classList.add('page-active');
+}
+
+function showWelcome() {
+  editor.classList.remove('page-active');
+  emptyState.classList.add('page-active');
+  renderWelcomeRecent();
+}
+
+function renderWelcomeRecent() {
+  const container = document.getElementById('welcome-recent');
+  if (!container) return;
+  const recent = decisions.slice(0, 5);
+  if (recent.length === 0) { container.innerHTML = ''; return; }
+
+  container.innerHTML = `<p class="welcome-recent-label">Jump back in</p>` +
+    recent.map(d => {
+      const proTotal = d.pros.reduce((s, i) => s + i.stars, 0);
+      const conTotal = d.cons.reduce((s, i) => s + i.stars, 0);
+      return `<button class="welcome-card" data-id="${d.id}">
+        <span class="welcome-card-title">${escHtml(d.title) || 'Untitled'}</span>
+        <span class="welcome-card-meta">
+          ${d.tag ? `<span class="tag-pill">${escHtml(d.tag)}</span>` : ''}
+          ${d.resolved ? '<span class="resolved-badge">Resolved</span>' : ''}
+          <span class="welcome-card-score">▲${proTotal} ▼${conTotal}</span>
+        </span>
+      </button>`;
+    }).join('');
+
+  container.querySelectorAll('.welcome-card').forEach(card => {
+    card.addEventListener('click', () => selectDecision(card.dataset.id));
+  });
+}
+
 // ─── DOM References ───────────────────────────────────────────
 const searchInput    = document.getElementById('search-input');
 const decisionList   = document.getElementById('decision-list');
@@ -88,9 +125,8 @@ function selectDecision(id) {
 
   window.__activeDecision = d; // exposed for goose.js
 
-  emptyState.hidden = true;
-  editor.hidden = false;
-  document.getElementById('main-panel').scrollTo({ top: 0, behavior: 'smooth' });
+  showEditor();
+  editor.scrollTo({ top: 0, behavior: 'smooth' });
 
   titleInput.value = d.title;
   tagInput.value   = d.tag;
@@ -120,6 +156,11 @@ btnNew.addEventListener('click', () => {
   save();
   selectDecision(d.id);
   titleInput.focus();
+});
+
+// Welcome page "New Decision" button mirrors the sidebar button
+document.getElementById('btn-new-welcome').addEventListener('click', () => {
+  document.getElementById('btn-new').click();
 });
 
 // ─── Toggle Resolved ──────────────────────────────────────────
@@ -309,6 +350,5 @@ renderSidebar();
 if (decisions.length > 0) {
   selectDecision(decisions[0].id);
 } else {
-  emptyState.hidden = false;
-  editor.hidden = true;
+  showWelcome();
 }
